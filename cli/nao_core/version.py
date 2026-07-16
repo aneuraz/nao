@@ -3,8 +3,10 @@
 import json
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
+from typing import Any
 
 from nao_core import __version__
 from nao_core.ui import UI
@@ -50,23 +52,21 @@ def _spawn_background_refresh() -> None:
     ]
 
     try:
+        platform_kwargs: dict[str, Any]
         if sys.platform == "win32":
             creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "DETACHED_PROCESS", 0)
-            subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=creationflags,
-            )
+            platform_kwargs = {"creationflags": creationflags}
         else:
-            subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
+            platform_kwargs = {"start_new_session": True}
+
+        process = subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            **platform_kwargs,
+        )
+        threading.Thread(target=process.wait, daemon=True).start()
     except Exception:
         pass
 
